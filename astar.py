@@ -20,7 +20,6 @@ class PathFinder:
 
     def set_obstacles(self, polygons):
         self.graph = nx.grid_2d_graph(100, 100)
-        self.map = np.zeros((100, 100), dtype=int)
         self.polygons = polygons
         self._mark_polygons()
         self._modify_graph()
@@ -31,13 +30,10 @@ class PathFinder:
             patch = Polygon(list(zip(p[::2], p[1::2])), closed=True)
             self.patches.append(patch)
 
-        for i, _ in np.ndenumerate(self.map):
+        idx = np.array(self.graph.nodes())
+        for i in  idx:
             for p in self.patches:
-                #if p.contains_point((i[0] * self.resolution, i[1] * self.resolution)):
-                #    self.map[i[0], i[1]] = 100
-                #    self.graph.remove_node((i[0], i[1]))
                 if p.contains_point((i[1] * self.resolution, i[0] * self.resolution)):
-                    self.map[i[1], i[0]] = 100
                     try:
                         self.graph.remove_node((i[1], i[0]))
                     except:
@@ -53,15 +49,19 @@ class PathFinder:
             for neighbor in neighbors:
                 if neighbor in self.graph:
                     self.graph.add_edge(node, neighbor)
+        weights = {(i, j): 1 for i, j in self.graph.edges if abs(i[0] - j[0]) + abs(i[1] - j[1]) == 1}
+        weights.update({(i, j): np.sqrt(2) for i, j in self.graph.edges if abs(i[0] - j[0]) + abs(i[1] - j[1]) == 2})
+        nx.set_edge_attributes(self.graph, values=weights, name='weight')
+
 
     def find_path(self, start, goal):
         self.start = (start / self.resolution).astype(int)
         self.goal = (goal / self.resolution).astype(int)
-        #try:
-        self.path = nx.astar_path(self.graph, tuple(self.start), tuple(self.goal), heuristic=self._heuristic)
-        #except:
-        #    print("No path!")
-        #    return None
+        try:
+            self.path = nx.astar_path(self.graph, tuple(self.start), tuple(self.goal), heuristic=self._heuristic)
+        except:
+            print("No path!")
+            return None
 
         numpy_array = np.array(self.path) * self.resolution
 

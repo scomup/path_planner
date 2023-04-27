@@ -115,12 +115,12 @@ class GUI:
                         if np.linalg.norm(point - np.array([event.xdata, event.ydata])) < 0.5:
                             self.selected_polygon = None
                             self.selected_point = i
-                            print(self.selected_point)
                             self.update_plot()
                             return
 
     def on_key(self, event):
-        if event.key == 'd' and self.selected_polygon is not None: # press "D" key to delete polygon
+        if (event.key == 'd' or event.key == 'delete' or event.key == 'backspace') \
+              and self.selected_polygon is not None: # press "D" key to delete polygon
             self.patches.pop(self.selected_polygon)
             self.polygons.pop(self.selected_polygon)
             self.selected_polygon = None
@@ -177,9 +177,20 @@ class GUI:
         if self.path is not None:
                 for i in range(len(self.path)-1):
                     self.ax.plot([self.path[i][0], self.path[i+1][0]], [self.path[i][1], self.path[i+1][1]], 'g')
-
-
         plt.draw()
+
+    def save_polygons(self, event=None):
+        with open('polygons.pickle', 'wb') as f:
+            pickle.dump(self.polygons, f)
+
+    def load_polygons(self, event=None):
+        with open('polygons.pickle', 'rb') as f:
+            self.polygons = pickle.load(f)
+        for polygon in self.polygons:
+            patch = Polygon(list(zip(polygon[::2], polygon[1::2])), closed=True)
+            self.patches.append(patch)
+        self.update_plot()
+
 
 
 if __name__ == '__main__':
