@@ -16,23 +16,16 @@ class PathFinder:
     def __init__(self):
         self.resolution = 0.1
         self.path = None
-        self.patches = None
 
     def set_obstacles(self, polygons):
         self.graph = nx.grid_2d_graph(100, 100)
         self.polygons = polygons
-        self._mark_polygons()
+        #self._mark_polygons()
         self._modify_graph()
-
-    def _mark_polygons(self):
-        self.patches = []
-        for p in self.polygons:
-            patch = Polygon(list(zip(p[::2], p[1::2])), closed=True)
-            self.patches.append(patch)
 
         idx = np.array(self.graph.nodes())
         for i in  idx:
-            for p in self.patches:
+            for p in self.polygons:
                 if p.contains_point((i[1] * self.resolution, i[0] * self.resolution)):
                     try:
                         self.graph.remove_node((i[1], i[0]))
@@ -81,7 +74,7 @@ if __name__ == '__main__':
     fig, ax = plt.subplots()
     ax.set_xlim(0, 10)
     ax.set_ylim(0, 10)
-    collection = PatchCollection(path_finder.patches, alpha=0.4)
+    collection = PatchCollection(path_finder.polygons, alpha=0.4)
     ax.add_collection(collection)
 
     ax.scatter(start[0], start[1], color='r')

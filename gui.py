@@ -7,10 +7,8 @@ import numpy as np
 class GUI:
     def __init__(self, area = [0,0,10,10]):
         self.fig, self.ax = plt.subplots()
-        self.patches = []
         self.polygons = []
-        self.current_polygon = None
-        self.current_points = []
+        self.current_points = None
         self.selected_polygon = None
         self.selected_point = None
         self.area = area
@@ -73,9 +71,8 @@ class GUI:
                 dx = event.xdata - self.prev_x
                 dy = event.ydata - self.prev_y
                 polygon = self.polygons[self.selected_polygon]
-                for i in range(0, len(polygon), 2):
-                    polygon[i] += dx
-                    polygon[i+1] += dy
+                vertices = polygon.get_verts() + np.array([dx, dy])
+                polygon.set_xy(vertices)
                 self.prev_x = event.xdata
                 self.prev_y = event.ydata
                 self.update_plot()
@@ -89,23 +86,19 @@ class GUI:
             if event.button == 1: # left click to add points
                 if self.selected_point is not None or self.selected_polygon is not None:
                     return
-                if self.current_polygon is None:
-                    self.current_polygon = [event.xdata, event.ydata]
+                if self.current_points is None:
+                    self.current_points = [[event.xdata, event.ydata]]
                 else:
-                    self.current_polygon.extend([event.xdata, event.ydata])
-                self.current_points.append([event.xdata, event.ydata])
+                    self.current_points.append([event.xdata, event.ydata])
                 self.update_plot()
             elif event.button == 3: # right click to close polygon
-                if self.current_polygon is not None:
-                    self.current_polygon.extend([self.current_polygon[0], self.current_polygon[1]])
-                    polygon = Polygon(list(zip(self.current_polygon[::2], self.current_polygon[1::2])), closed=True)
-                    self.patches.append(polygon)
-                    self.polygons.append(self.current_polygon)
-                    self.current_polygon = None
-                    self.current_points = []
+                if self.current_points is not None:
+                    polygon = Polygon(np.array(self.current_points), closed=True)
+                    self.polygons.append(polygon)
+                    self.current_points = None
                     self.update_plot()
             elif event.button == 2: # middle click to select polygon
-                for i, patch in enumerate(self.patches):
+                for i, patch in enumerate(self.polygons):
                     if patch.contains_point((event.xdata, event.ydata)):
                         self.selected_polygon = i
                         self.selected_point = None
@@ -121,14 +114,13 @@ class GUI:
     def on_key(self, event):
         if (event.key == 'd' or event.key == 'delete' or event.key == 'backspace') \
               and self.selected_polygon is not None: # press "D" key to delete polygon
-            self.patches.pop(self.selected_polygon)
             self.polygons.pop(self.selected_polygon)
             self.selected_polygon = None
             self.update_plot()
         if event.key == 'r':
             self.selected_polygon = None 
             self.selected_point = None
-            self.current_points = []
+            self.current_points = None
             self.update_plot()
 
 
@@ -137,13 +129,9 @@ class GUI:
             pickle.dump(self.polygons, f)
 
     def load_polygons(self, event=None):
-        self.patches = []
         self.polygons = []
         with open('polygons.pickle', 'rb') as f:
             self.polygons = pickle.load(f)
-        for polygon in self.polygons:
-            patch = Polygon(list(zip(polygon[::2], polygon[1::2])), closed=True)
-            self.patches.append(patch)
         self.update_plot()
 
     def update_plot(self):
@@ -154,19 +142,13 @@ class GUI:
         self.ax.scatter(self.points[0][0], self.points[0][1], color='red', s=20)
         self.ax.scatter(self.points[1][0], self.points[1][1], color='blue', s=20)
 
-        self.patches = []
-        for polygon in self.polygons:
-            patch = Polygon(list(zip(polygon[::2], polygon[1::2])), closed=True)
-            self.patches.append(patch)
-
-
-        collection = PatchCollection(self.patches, alpha=0.4)
+        collection = PatchCollection(self.polygons, alpha=0.4)
         self.ax.add_collection(collection)
-        if self.current_points:
-            x, y = zip(*self.current_points)
-            self.ax.scatter(x, y, color='red', s=5)
+        if self.current_points is not None:
+            points = np.array(self.current_points)
+            self.ax.scatter(points[:,0], points[:,1], color='red', s=5)
         if self.selected_polygon is not None:
-            p =self.patches[self.selected_polygon]
+            p =self.polygons[self.selected_polygon]
             collection = PatchCollection([p], alpha=1)
             self.ax.add_collection(collection)
         if self.selected_point is not None:
@@ -186,12 +168,10 @@ class GUI:
     def load_polygons(self, event=None):
         with open('polygons.pickle', 'rb') as f:
             self.polygons = pickle.load(f)
-        for polygon in self.polygons:
-            patch = Polygon(list(zip(polygon[::2], polygon[1::2])), closed=True)
-            self.patches.append(patch)
         self.update_plot()
 
 
 
 if __name__ == '__main__':
     editor = GUI()
+    editor.show()
