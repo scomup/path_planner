@@ -3,10 +3,12 @@ from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 import pickle
 import numpy as np
+from solver import * 
 
 class GUI:
-    def __init__(self, area = [0,0,10,10]):
+    def __init__(self, area = [0,-5,10,5]):
         self.fig, self.ax = plt.subplots()
+        self.ax.axis('equal')
         self.polygons = []
         self.current_points = None
         self.selected_polygon = None
@@ -20,6 +22,8 @@ class GUI:
         self.fig.canvas.mpl_connect('button_release_event', self.on_release)
         self.path = None
         self.path_finder = None
+        self.robot_polygon = np.array([[-0.5, 0.2], [0.5, 0.2], [0.5, -0.2], [-0.5, -0.2]])
+        self.traj = []
 
 
         self.save_button_ax = plt.axes([0.6, 0.0, 0.12, 0.075])
@@ -46,10 +50,46 @@ class GUI:
         self.path_finder = path_finder
 
     def find_path(self, event):
-        if self.path_finder is not None:
-            self.path_finder.set_obstacles(self.polygons)
-            self.path = self.path_finder.find_path(self.points[0], self.points[1])
-            self.update_plot()
+        #if self.path_finder is not None:
+        #    self.path_finder.set_obstacles(self.polygons)
+        #    self.path = self.path_finder.find_path(self.points[0], self.points[1])
+        #    self.update_plot()
+
+        solver = Solver()
+        n = 20
+        dt = 1.
+        cur_pose = gtsam.Pose2(0., 0., 0.)
+        v = np.array([0.5, 0, 0])
+        max_dist = 0.5
+
+        # Add all node.
+        for i in range(n):
+            solver.add_node(i, cur_pose)
+            delta = gtsam.Pose2(v * dt)
+            cur_pose = cur_pose * delta
+
+        # Add all odom factor.
+        for i in range(n-1):
+            solver.add_odom_factor(i, i+1, gtsam.Pose2(v * dt))
+
+        # Add prior pose factor.
+        solver.add_prior_factor(0)
+        solver.add_prior_factor(n-1)
+
+        # Add all obstacle factor.
+        for i in range(n):
+            for j in range(len(self.polygons)):
+                solver.add_polygon_factor(i, self.polygons[j].get_verts())
+        print('start')
+        result = solver.solve()
+        print('end')    
+        self.traj = []
+        for i in range(n):
+            pose = result.atPose2(i)
+            p =  Polygon( transform_polygon( m2v(pose.matrix()), robot_polygon), closed=True)
+            self.traj.append(p)
+        self.update_plot()
+
 
     def on_release(self, event):
         if event.button == 1: # left mouse button released
@@ -159,6 +199,10 @@ class GUI:
         if self.path is not None:
                 for i in range(len(self.path)-1):
                     self.ax.plot([self.path[i][0], self.path[i+1][0]], [self.path[i][1], self.path[i+1][1]], 'g')
+        if self.traj is not []:
+            collection = PatchCollection(self.traj, alpha=0.2, edgecolor = 'green', facecolor = 'green')
+            self.ax.add_collection(collection)
+
         plt.draw()
 
     def save_polygons(self, event=None):
