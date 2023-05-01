@@ -128,8 +128,9 @@ with open('polygons.pickle', 'rb') as f:
     polygons = pickle.load(f)
 
 
-distance = distance_polygon_to_polygon_2d(polygons[0].get_verts(), polygons[1].get_verts())
-print(distance)
+#distance = distance_polygon_to_polygon_2d(polygons[0].get_verts(), polygons[1].get_verts())
+#print(distance)
+
 
 
 #x_values1 = [0, 0.2]
